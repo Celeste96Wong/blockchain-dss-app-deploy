@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>SME User Testing</h1>
+
+<form method="POST">
+  {% for key, text in likert_questions.items() %}
+  <div class="question-block">
+    <span class="question-text">{{ text }}</span>
+    {% for opt in likert_scale %}
+    <label class="option"><input type="radio" name="{{ key }}" value="{{ opt }}" required> {{ opt }}</label>
+    {% endfor %}
+  </div>
+  {% endfor %}
+
+  {% for key, text in open_questions.items() %}
+  <div class="question-block">
+    <span class="question-text">{{ text }}</span>
+    <textarea name="{{ key }}"></textarea>
+  </div>
+  {% endfor %}
+
+  <div class="btn-row">
+    <button type="submit" class="btn btn-primary">Submit Feedback</button>
+  </div>
+</form>
+{% endblock %}

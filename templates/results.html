@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Your Blockchain Adoption Readiness Report</h1>
+
+<div class="card">
+  <div class="metric">{{ (overall_score * 100) | round(1) }} / 100</div>
+  <span class="tier-badge">{{ tier }}</span>
+</div>
+
+<canvas id="radarChart" width="400" height="320"></canvas>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+const ctx = document.getElementById('radarChart').getContext('2d');
+new Chart(ctx, {
+  type: 'radar',
+  data: {
+    labels: {{ dim_labels | tojson }},
+    datasets: [{
+      label: 'Readiness',
+      data: {{ dim_values | tojson }},
+      backgroundColor: 'rgba(200, 155, 60, 0.25)',
+      borderColor: '#C89B3C',
+      pointBackgroundColor: '#C89B3C',
+    }]
+  },
+  options: {
+    scales: { r: { min: 0, max: 1, ticks: { stepSize: 0.25 } } },
+    plugins: { legend: { display: false } }
+  }
+});
+</script>
+
+<h2>💬 Plain-Language Explanation</h2>
+{% if llm_error %}
+  <div class="card card-error">
+    Could not reach the LLM API. Please check your <code>OPENAI_API_KEY</code> environment variable.<br>
+    Technical detail: {{ llm_error }}
+  </div>
+{% else %}
+  <div class="card">{{ explanation }}</div>
+{% endif %}
+
+<details>
+  <summary>See diagnostic details (technical)</summary>
+  <p><strong>Dimension weights:</strong></p>
+  {% for dim in dim_labels %}
+  <div class="dim-bar-row">
+    <div class="dim-label">{{ dim }}</div>
+    <div class="dim-bar-track"><div class="dim-bar-fill" style="width: {{ (weights[dim]*100)|round(1) }}%"></div></div>
+    <div class="dim-value">{{ (weights[dim]*100)|round(1) }}%</div>
+  </div>
+  {% endfor %}
+
+  <p><strong>Dimension scores:</strong></p>
+  {% for dim in dim_labels %}
+  <div class="dim-bar-row">
+    <div class="dim-label">{{ dim }}</div>
+    <div class="dim-bar-track"><div class="dim-bar-fill" style="width: {{ (dim_scores[dim]*100)|round(1) }}%"></div></div>
+    <div class="dim-value">{{ (dim_scores[dim]*100)|round(1) }}%</div>
+  </div>
+  {% endfor %}
+
+  <p><strong>Activated diagnostic flags:</strong></p>
+  <ul>
+    {% for f in flags %}<li>{{ f }}</li>{% endfor %}
+  </ul>
+
+  {% if faithfulness %}
+  <p><strong>LLM Faithfulness Check:</strong>
+    Coverage {{ faithfulness.coverage_ratio }} —
+    <span style="color: {{ 'var(--green)' if faithfulness.faithfulness_status == 'PASS' else 'var(--red)' }}">
+      {{ faithfulness.faithfulness_status }}
+    </span>
+  </p>
+  {% endif %}
+</details>
+
+<div class="btn-row">
+  <a href="{{ url_for('validation_select') }}" class="btn btn-primary">Continue to Validation Survey →</a>
+</div>
+{% endblock %}

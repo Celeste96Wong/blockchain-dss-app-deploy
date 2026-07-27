@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Stage 2 · Business Readiness Assessment</h1>
+<p class="caption">Rate each factor from Very Low to Very High based on your business's current situation.</p>
+
+<form method="POST">
+  {% set ns = namespace(current_dim="") %}
+  {% for key, item in questions.items() %}
+    {% if item[0] != ns.current_dim %}
+      <h2>{{ item[0] }} Readiness</h2>
+      {% set ns.current_dim = item[0] %}
+    {% endif %}
+    <div class="question-block">
+      <span class="question-text">{{ item[1] }}</span>
+      <select name="{{ key }}" required>
+        {% for opt in valid_options %}
+        <option value="{{ opt }}" {% if opt == "Moderate" %}selected{% endif %}>{{ opt }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  {% endfor %}
+
+  <div class="btn-row">
+    <a href="{{ url_for('stage1_result') }}" class="btn btn-secondary">← Back</a>
+    <button type="submit" class="btn btn-primary">Generate My Results →</button>
+  </div>
+</form>
+{% endblock %}

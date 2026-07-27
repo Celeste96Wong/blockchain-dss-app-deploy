@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blockchain Adoption Readiness Assessment</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <h3>Progress</h3>
+    <ul class="progress-list">
+      {% set stages = [
+        ('consent', 'Consent'),
+        ('profile', 'Profile'),
+        ('stage1', 'Stage 1 · Suitability'),
+        ('stage2', 'Stage 2 · Readiness'),
+        ('results', 'Stage 3 · Explanation'),
+        ('validation', 'Validation Survey')
+      ] %}
+      {% for key, label in stages %}
+        <li class="{{ 'current' if key == current_stage else ('done' if stages_done and key in stages_done else '') }}">
+          {{ label }}
+        </li>
+      {% endfor %}
+    </ul>
+    <p class="disclaimer">This is a research prototype. Your identifying information is stored separately from your responses and is never published.</p>
+  </aside>
+  <main class="content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>

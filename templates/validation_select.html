@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Validation Survey</h1>
+<p class="caption">
+  This survey is intended for Expert Validators (academic/industry) and SME User Testing
+  participants.
+</p>
+<p><strong>Who is completing this survey?</strong></p>
+<div class="btn-row">
+  <a href="{{ url_for('validation_expert') }}" class="btn btn-primary">Expert Validator (Academic / Industry)</a>
+  <a href="{{ url_for('validation_sme') }}" class="btn btn-primary">SME User</a>
+</div>
+<div class="btn-row">
+  <a href="{{ url_for('done') }}" class="btn btn-secondary">Skip validation</a>
+</div>
+{% endblock %}

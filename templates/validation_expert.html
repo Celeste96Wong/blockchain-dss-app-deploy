@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Expert Validation</h1>
+
+<h2>Part A — System Evaluation (Likert Scale)</h2>
+<form method="POST">
+  {% for key, text in likert_questions.items() %}
+  <div class="question-block">
+    <span class="question-text">{{ text }}</span>
+    {% for opt in likert_scale %}
+    <label class="option"><input type="radio" name="{{ key }}" value="{{ opt }}" required> {{ opt }}</label>
+    {% endfor %}
+  </div>
+  {% endfor %}
+
+  <h2>Part B — Fuzzy AHP Pairwise Comparison</h2>
+  <div class="card card-warn" style="white-space: pre-line;">{{ saaty_explanation }}</div>
+
+  {% for key, item in ahp_questions.items() %}
+  <div class="question-block">
+    <span class="question-text">{{ item.context }}</span>
+    <p style="font-size:13px; color:var(--text-muted); margin:4px 0;">Which is more important?</p>
+    <label class="option"><input type="radio" name="{{ key }}_direction" value="{{ item.pair[0] }}" required> {{ item.pair[0] }}</label>
+    <label class="option"><input type="radio" name="{{ key }}_direction" value="Equal"> Equally Important</label>
+    <label class="option"><input type="radio" name="{{ key }}_direction" value="{{ item.pair[1] }}"> {{ item.pair[1] }}</label>
+    <p style="font-size:13px; color:var(--text-muted); margin:8px 0 4px;">If not equal, by how much more important?</p>
+    <select name="{{ key }}_intensity">
+      <option value="">N/A (equally important)</option>
+      {% for opt in intensity_options %}
+      <option value="{{ opt }}">{{ opt }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endfor %}
+
+  <h2>Part C — Dimension Structure</h2>
+  <div class="question-block">
+    <span class="question-text">{{ dimension_structure_question }}</span>
+    {% for opt in dimension_structure_options %}
+    <label class="option"><input type="radio" name="dim_structure" value="{{ opt }}" required> {{ opt }}</label>
+    {% endfor %}
+  </div>
+
+  <h2>Part D — Open Feedback</h2>
+  {% for key, text in open_questions.items() %}
+  <div class="question-block">
+    <span class="question-text">{{ text }}</span>
+    <textarea name="{{ key }}"></textarea>
+  </div>
+  {% endfor %}
+
+  <div class="btn-row">
+    <button type="submit" class="btn btn-primary">Submit Expert Feedback</button>
+  </div>
+</form>
+{% endblock %}

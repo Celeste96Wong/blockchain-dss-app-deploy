@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Business Profile</h1>
+<p class="caption">
+  ⚠️ These questions are recorded for research analysis only — they do <strong>not</strong>
+  affect your assessment score. Future versions of this tool may use this information to
+  provide industry-specific calibration.
+</p>
+
+<form method="POST">
+  {% for key, q in profile_questions.items() %}
+  <div class="question-block">
+    <span class="question-text">{{ q.text }}</span>
+    <select name="{{ key }}" required>
+      <option value="" disabled selected>Select an option</option>
+      {% for opt in q.options %}
+      <option value="{{ opt }}">{{ opt }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  {% endfor %}
+
+  <div class="btn-row">
+    <a href="{{ url_for('consent') }}" class="btn btn-secondary">← Back</a>
+    <button type="submit" class="btn btn-primary">Continue →</button>
+  </div>
+</form>
+{% endblock %}

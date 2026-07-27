@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Stage 1 · Suitability Result</h1>
+
+<div class="card">
+  <div class="metric">{{ result.yes_count }} / {{ result.total_questions }} Yes</div>
+  <p>({{ (result.ratio * 100) | round(0) }}% suitability score)</p>
+</div>
+
+{% if result.gate_decision == "PROCEED" %}
+  <div class="card card-success">
+    ✅ <strong>{{ result.message }}</strong>
+  </div>
+  <p>You may proceed to Stage 2 for a detailed readiness assessment.</p>
+  <div class="btn-row">
+    <a href="{{ url_for('stage2') }}" class="btn btn-primary">Continue to Stage 2 →</a>
+  </div>
+{% else %}
+  <div class="card card-error">
+    ⛔ <strong>{{ result.message }}</strong>
+  </div>
+  <p>
+    Based on the Stage-Gate design of this system, the assessment stops here — this reflects
+    the system's core principle of <strong>decision integrity over technology promotion</strong>.
+    It will not recommend blockchain adoption when it is not structurally appropriate.
+  </p>
+  <div class="card card-warn">
+    For demonstration purposes, you may still proceed to Stage 2 to see how the full assessment works.
+  </div>
+  <div class="btn-row">
+    <a href="{{ url_for('stage2') }}" class="btn btn-secondary">Proceed anyway (demo purposes) →</a>
+  </div>
+{% endif %}
+
+<div class="btn-row">
+  <a href="{{ url_for('stage1') }}" class="btn btn-secondary">← Back to Stage 1</a>
+</div>
+{% endblock %}

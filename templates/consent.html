@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>🔗 Blockchain Adoption Readiness Assessment</h1>
+<p class="caption">
+  This tool helps non-technical SME decision-makers assess whether blockchain adoption
+  is appropriate for their business, and — if so — how ready their organisation is.
+</p>
+
+<div class="card card-warn">
+  <strong>Disclaimer:</strong> This assessment is intended for academic research and preliminary
+  self-evaluation purposes. It does not constitute professional business, financial, or legal
+  advice. Please consult qualified professionals before making final business decisions.
+</div>
+
+<h2>Research Consent</h2>
+<p class="caption">{{ privacy_note }}</p>
+
+<form method="POST">
+  <div class="question-block">
+    <span class="question-text">Full Name *</span>
+    <input type="text" name="full_name" required>
+  </div>
+  <div class="question-block">
+    <span class="question-text">Email Address *</span>
+    <input type="email" name="email" required>
+  </div>
+  <div class="question-block">
+    <span class="question-text">Organisation / Affiliation (optional)</span>
+    <input type="text" name="affiliation">
+  </div>
+
+  {% for key, q in consent_questions.items() %}
+  <div class="question-block">
+    <span class="question-text">{{ q.text }}</span>
+    {% for opt in q.options %}
+    <label class="option">
+      <input type="radio" name="{{ key }}" value="{{ opt }}" required> {{ opt }}
+    </label>
+    {% endfor %}
+  </div>
+  {% endfor %}
+
+  <div class="btn-row">
+    <button type="submit" class="btn btn-primary">Continue</button>
+  </div>
+</form>
+{% endblock %}

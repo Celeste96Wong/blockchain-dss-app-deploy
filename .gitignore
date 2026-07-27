@@ -1,0 +1,12 @@
+# Secrets — never commit your real API key or KV credentials
+.env
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Vercel local dev files
+.vercel/
+
+# OS files
+.DS_Store
