@@ -9,16 +9,16 @@ any application or calculation code.
 # ============================================================
 # CONSENT — granular consent (3 questions) + identifying info
 # ============================================================
-# Academic basis for minimal identifying-info collection: standard
-# research ethics practice (e.g. Tilburg University informed consent
-# guidelines; ICPSR recommended consent language) recommends collecting
-# only Name + Email as the minimal identifying information needed to
-# contact participants, stored separately from response data and never
-# published — responses are reported/quoted anonymously regardless.
+# Identifying information collected: preferred name, email, organisation
+# (required), and position (required). Per supervisor discussion, personal
+# data IS collected to enable participant contact — but stored separately
+# from response data and never published; only anonymised quotes/findings
+# are shared publicly (subject to the C2 consent question below).
 CONSENT_IDENTITY_FIELDS = {
-    "full_name": {"label": "Full Name", "required": True},
+    "preferred_name": {"label": "Preferred Name", "required": True},
     "email": {"label": "Email Address", "required": True},
-    "affiliation": {"label": "Organisation / Affiliation (optional)", "required": False},
+    "organization": {"label": "Organization", "required": True},
+    "position": {"label": "Position", "required": True},
 }
 
 CONSENT_QUESTIONS = {
@@ -27,7 +27,7 @@ CONSENT_QUESTIONS = {
         "options": ["Yes, I agree to participate", "No, I do not wish to participate"],
     },
     "C2_quote_feedback": {
-        "text": "May we quote your feedback (anonymously, without identifying your name or company) in the research paper, presentations, or competition entries?",
+        "text": "May we quote your feedback (anonymously, without identifying your name or organization) in the research paper, presentations, or competition entries?",
         "options": ["Yes, anonymous quotes are okay", "No, please do not quote my feedback"],
     },
     "C3_future_contact": {
@@ -37,12 +37,53 @@ CONSENT_QUESTIONS = {
 }
 
 CONSENT_PRIVACY_NOTE = (
-    "We collect your name and email address so we can contact you regarding this "
-    "research (e.g. to share results or ask follow-up questions). Your identifying "
-    "information is stored separately from your responses and is never published. "
-    "Any quotes or findings shared publicly will be fully anonymised — your name and "
-    "company will not be disclosed."
+    "We collect your preferred name, email address, organization, and position so we can "
+    "contact you regarding this research — for example, to share results or ask follow-up "
+    "questions. Your identifying information is stored separately from your responses and is "
+    "never published. Any quotes or findings shared publicly will be fully anonymised — your "
+    "name and organization will not be disclosed unless you specifically agree below.\n\n"
+    "The choices below let you specify exactly what you're comfortable with."
 )
+
+# Story shown at the top of the Consent page, before the Disclaimer and
+# Personal Data sections. Written to explain (a) who is asking and why,
+# and (b) what's in it for the person filling it in — separated into
+# academic-reviewer and industry-reviewer value propositions, since their
+# motivations for participating differ.
+CONSENT_STORY = {
+    "intro": (
+        "You're being asked to validate this because your expertise actually matters here — "
+        "not as a formality, but because this system's rigour depends on people who can "
+        "properly evaluate it, whether from a research or an industry standpoint."
+    ),
+    "who_i_am": (
+        "I'm a Master's student in AI at Asia Pacific University (APU), and this prototype is "
+        "the core of my Final Year Project: a decision-support tool that helps non-technical "
+        "SME owners figure out — honestly — whether blockchain adoption makes sense for their "
+        "business."
+    ),
+    "why_it_matters": (
+        "Your feedback doesn't just get filed away — it directly shapes how the system's "
+        "underlying model is calibrated and validated, including the fuzzy weighting "
+        "structure this project has openly flagged as provisional."
+    ),
+    "academic_value": (
+        "For academic reviewers, your input becomes part of the evidence base for a research "
+        "question that, to my knowledge, hasn't been properly answered yet, and you'll be "
+        "formally acknowledged in any resulting publication (if you're willing to)."
+    ),
+    "industry_value": (
+        "For industry reviewers, your name and role will be visibly connected to work that's "
+        "actually useful — and depending on your position, that visibility could translate "
+        "into real opportunities: if this project is presented at competitions or industry "
+        "events, I'll be glad to introduce you (if you're willing to) to any SME that comes "
+        "out of it genuinely interested in blockchain adoption."
+    ),
+    "closing": (
+        "Just this assessment and a short feedback survey afterward — about 10–15 minutes "
+        "total. Thank you for lending your expertise to this."
+    ),
+}
 
 # ============================================================
 # STAGE 0 -> now just "Profile" (auxiliary; not used in Fuzzy computation)
@@ -56,18 +97,53 @@ PROFILE_QUESTIONS = {
         "options": [
             "Retail / Trading", "Professional / Business Services", "Food & Beverage",
             "Construction", "Manufacturing", "Logistics & Supply Chain",
-            "Financial Services", "Agriculture", "Others",
+            "Financial Services", "Agriculture",
+            "Blockchain / Tech Service Provider", "Education / Research",
+            "Others",
         ],
     },
     "P2_company_size": {
         "text": "How many employees does your business have?",
-        "options": ["Less than 5 employees", "5 - 29 employees", "30 - 75 employees", "76 - 200 employees"],
+        "options": [
+            "Less than 5 employees", "5 - 29 employees", "30 - 75 employees",
+            "76 - 200 employees", "More than 200 employees",
+        ],
     },
     "P3_years_operation": {
         "text": "How many years has your business been operating?",
         "options": ["Less than 2 years", "2 - 5 years", "6 - 10 years", "More than 10 years"],
     },
 }
+
+# Shown at the top of the Profile / Stage 1 / Stage 2 pages so that
+# Academic and Industry Experts know these questions are designed to
+# simulate a typical SME user's journey through the system — not to ask
+# about the expert's own personal/organisational circumstances. This
+# ensures experts see exactly the same flow a real SME user would,
+# while still being able to answer meaningfully.
+PROFILE_EXPERT_NOTE = (
+    "If you're completing this as an Academic or Industry Expert, the questions below are "
+    "designed to simulate a typical SME user's experience — feel free to answer as if you "
+    "were evaluating a hypothetical or familiar SME, or select the closest applicable "
+    "options. This does not need to reflect your own personal employment."
+)
+
+STAGE_EXPERT_NOTE_EMPLOYMENT = PROFILE_EXPERT_NOTE
+
+STAGE_EXPERT_NOTE_ORGANISATION = (
+    "If you're completing this as an Academic or Industry Expert, the questions below are "
+    "designed to simulate a typical SME user's experience — feel free to answer as if you "
+    "were evaluating a hypothetical or familiar SME, or select the closest applicable "
+    "options. This does not need to reflect your own organisation."
+)
+
+# Shown at the bottom of the Results page, before the button leading into
+# the Validation Survey — signals the transition from "experiencing the
+# SME journey" back to "giving your own expert opinion".
+RESULTS_TO_VALIDATION_NOTE = (
+    "You've now seen the complete assessment experience an SME user would go through. "
+    "Next, we'd like your expert feedback on what you just evaluated."
+)
 
 
 def map_to_official_sme_class(industry: str, size_range: str) -> str:
@@ -76,6 +152,9 @@ def map_to_official_sme_class(industry: str, size_range: str) -> str:
     classification. Thresholds differ between manufacturing and other sectors.
     Auxiliary / informational only — does not feed into the Fuzzy computation.
     """
+    if size_range == "More than 200 employees":
+        return "Large Enterprise (Non-SME)"
+
     is_manufacturing = industry == "Manufacturing"
     mapping_manu = {
         "Less than 5 employees": "Micro",
@@ -152,11 +231,9 @@ EXPERT_VALIDATION_CLOSED_QUESTIONS = {
 }
 
 # ============================================================
-# Fuzzy AHP pairwise comparison — REDESIGNED as choice-based questions
-# (previously free-text; changed per supervisor + self-review feedback
-# to (a) avoid inconsistent free-text formats, and (b) explicitly show
-# the Saaty (1980) Fundamental Scale so industry experts unfamiliar
-# with AHP know how to interpret "1" vs "9".)
+# Fuzzy AHP pairwise comparison — choice-based questions (not free-text)
+# so responses are consistent to parse, with the Saaty (1980) Fundamental
+# Scale explained on-screen for reviewers unfamiliar with AHP.
 # ============================================================
 SAATY_SCALE_EXPLANATION = (
     "For each comparison below, first choose which factor is more important "

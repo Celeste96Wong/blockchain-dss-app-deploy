@@ -6,29 +6,44 @@
   is appropriate for their business, and — if so — how ready their organisation is.
 </p>
 
+<div class="card">
+  <h2 style="margin-top:0;">Before You Continue</h2>
+  <p>{{ consent_story.intro }}</p>
+  <p>{{ consent_story.who_i_am }}</p>
+  <p>{{ consent_story.why_it_matters }}</p>
+  <p>{{ consent_story.academic_value }}</p>
+  <p>{{ consent_story.industry_value }}</p>
+  <p>{{ consent_story.closing }}</p>
+</div>
+
 <div class="card card-warn">
   <strong>Disclaimer:</strong> This assessment is intended for academic research and preliminary
   self-evaluation purposes. It does not constitute professional business, financial, or legal
   advice. Please consult qualified professionals before making final business decisions.
 </div>
 
-<h2>Research Consent</h2>
-<p class="caption">{{ privacy_note }}</p>
+<h2>Personal Data &amp; Privacy</h2>
+<p class="caption" style="white-space: pre-line;">{{ privacy_note }}</p>
 
 <form method="POST">
   <div class="question-block">
-    <span class="question-text">Full Name *</span>
-    <input type="text" name="full_name" required>
+    <span class="question-text">Preferred Name *</span>
+    <input type="text" name="preferred_name" required>
   </div>
   <div class="question-block">
     <span class="question-text">Email Address *</span>
     <input type="email" name="email" required>
   </div>
   <div class="question-block">
-    <span class="question-text">Organisation / Affiliation (optional)</span>
-    <input type="text" name="affiliation">
+    <span class="question-text">Organization *</span>
+    <input type="text" name="organization" required>
+  </div>
+  <div class="question-block">
+    <span class="question-text">Position *</span>
+    <input type="text" name="position" required>
   </div>
 
+  <h2>Research Consent</h2>
   {% for key, q in consent_questions.items() %}
   <div class="question-block">
     <span class="question-text">{{ q.text }}</span>

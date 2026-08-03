@@ -19,6 +19,7 @@ runtime when deployed with the accompanying vercel.json.
 
 import os
 import sys
+import json
 import secrets
 
 # Allow importing sibling modules (fuzzy_engine.py, llm_explainer.py, etc.)
@@ -28,8 +29,10 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from dotenv import load_dotenv
 
 from questions import (
-    CONSENT_QUESTIONS, CONSENT_IDENTITY_FIELDS, CONSENT_PRIVACY_NOTE,
-    PROFILE_QUESTIONS, map_to_official_sme_class,
+    CONSENT_QUESTIONS, CONSENT_IDENTITY_FIELDS, CONSENT_PRIVACY_NOTE, CONSENT_STORY,
+    PROFILE_QUESTIONS, PROFILE_EXPERT_NOTE, STAGE_EXPERT_NOTE_EMPLOYMENT,
+    STAGE_EXPERT_NOTE_ORGANISATION, RESULTS_TO_VALIDATION_NOTE,
+    map_to_official_sme_class,
     STAGE1_QUESTIONS, STAGE2_QUESTIONS, VALID_STAGE2_OPTIONS, DIM_ORDER,
     LIKERT_SCALE, EXPERT_VALIDATION_CLOSED_QUESTIONS,
     SAATY_SCALE_EXPLANATION, SAATY_INTENSITY_OPTIONS, EXPERT_AHP_QUESTIONS,
@@ -42,7 +45,7 @@ from fuzzy_engine import (
     generate_diagnostic_flags, score_to_tier,
 )
 from llm_explainer import generate_llm_explanation, check_llm_faithfulness
-from db import save_session_record, is_using_local_fallback
+from db import save_session_record, is_using_local_fallback, kv_list_keys, kv_get, kv_delete
 
 load_dotenv()
 
@@ -60,14 +63,15 @@ def consent():
     if request.method == "POST":
         answers = {key: request.form.get(key) for key in CONSENT_QUESTIONS}
         identity = {
-            "full_name": request.form.get("full_name", "").strip(),
+            "preferred_name": request.form.get("preferred_name", "").strip(),
             "email": request.form.get("email", "").strip(),
-            "affiliation": request.form.get("affiliation", "").strip(),
+            "organization": request.form.get("organization", "").strip(),
+            "position": request.form.get("position", "").strip(),
         }
-        if not identity["full_name"] or not identity["email"]:
-            flash("Please provide your name and email to continue.", "warning")
+        if not all(identity.values()):
+            flash("Please provide your name, email, organization, and position to continue.", "warning")
             return render_template("consent.html", consent_questions=CONSENT_QUESTIONS,
-                                    privacy_note=CONSENT_PRIVACY_NOTE)
+                                    privacy_note=CONSENT_PRIVACY_NOTE, consent_story=CONSENT_STORY)
 
         session["consent_answers"] = answers
         session["identity"] = identity
@@ -79,7 +83,7 @@ def consent():
         return redirect(url_for("profile"))
 
     return render_template("consent.html", consent_questions=CONSENT_QUESTIONS,
-                            privacy_note=CONSENT_PRIVACY_NOTE)
+                            privacy_note=CONSENT_PRIVACY_NOTE, consent_story=CONSENT_STORY)
 
 
 # ============================================================
@@ -94,14 +98,14 @@ def profile():
         answers = {key: request.form.get(key) for key in PROFILE_QUESTIONS}
         if None in answers.values() or "" in answers.values():
             flash("Please answer all profile questions.", "warning")
-            return render_template("profile.html", profile_questions=PROFILE_QUESTIONS)
+            return render_template("profile.html", profile_questions=PROFILE_QUESTIONS, expert_note=PROFILE_EXPERT_NOTE)
         session["profile_answers"] = answers
         session["sme_class"] = map_to_official_sme_class(
             answers["P1_industry_sector"], answers["P2_company_size"]
         )
         return redirect(url_for("stage1"))
 
-    return render_template("profile.html", profile_questions=PROFILE_QUESTIONS)
+    return render_template("profile.html", profile_questions=PROFILE_QUESTIONS, expert_note=PROFILE_EXPERT_NOTE)
 
 
 # ============================================================
@@ -116,12 +120,12 @@ def stage1():
         answers = {key: request.form.get(key) for key in STAGE1_QUESTIONS}
         if None in answers.values():
             flash("Please answer all 11 questions.", "warning")
-            return render_template("stage1.html", questions=STAGE1_QUESTIONS)
+            return render_template("stage1.html", questions=STAGE1_QUESTIONS, expert_note=STAGE_EXPERT_NOTE_EMPLOYMENT)
         session["stage1_answers"] = answers
         session["stage1_result"] = evaluate_stage1(answers)
         return redirect(url_for("stage1_result"))
 
-    return render_template("stage1.html", questions=STAGE1_QUESTIONS)
+    return render_template("stage1.html", questions=STAGE1_QUESTIONS, expert_note=STAGE_EXPERT_NOTE_EMPLOYMENT)
 
 
 @app.route("/stage1_result")
@@ -143,7 +147,7 @@ def stage2():
         answers = {key: request.form.get(key) for key in STAGE2_QUESTIONS}
         if None in answers.values():
             flash("Please answer all 8 questions.", "warning")
-            return render_template("stage2.html", questions=STAGE2_QUESTIONS, valid_options=VALID_STAGE2_OPTIONS)
+            return render_template("stage2.html", questions=STAGE2_QUESTIONS, valid_options=VALID_STAGE2_OPTIONS, expert_note=STAGE_EXPERT_NOTE_ORGANISATION)
 
         session["stage2_answers"] = answers
 
@@ -187,7 +191,7 @@ def stage2():
 
         return redirect(url_for("results"))
 
-    return render_template("stage2.html", questions=STAGE2_QUESTIONS, valid_options=VALID_STAGE2_OPTIONS)
+    return render_template("stage2.html", questions=STAGE2_QUESTIONS, valid_options=VALID_STAGE2_OPTIONS, expert_note=STAGE_EXPERT_NOTE_ORGANISATION)
 
 
 # ============================================================
@@ -209,6 +213,7 @@ def results():
         explanation=session.get("explanation"),
         llm_error=session.get("llm_error"),
         faithfulness=session.get("faithfulness"),
+        results_to_validation_note=RESULTS_TO_VALIDATION_NOTE,
     )
 
 
@@ -288,6 +293,60 @@ def validation_sme():
 def done():
     session.clear()
     return render_template("done.html")
+
+
+# ============================================================
+# ADMIN — password-protected viewer for all collected records
+# ============================================================
+@app.route("/admin", methods=["GET", "POST"])
+def admin():
+    """
+    Simple password-protected viewer for all collected records.
+
+    Protected by a single shared password (ADMIN_PASSWORD env var) rather
+    than individual user accounts, since only the researcher needs access.
+    This is a minimal-effort protection appropriate for a research
+    prototype — not a substitute for proper authentication in a
+    production system handling sensitive data at scale.
+    """
+    admin_password = os.environ.get("ADMIN_PASSWORD")
+    if not admin_password:
+        return "ADMIN_PASSWORD environment variable not set. Refusing to show this page.", 500
+
+    if not session.get("admin_authed"):
+        if request.method == "POST":
+            if request.form.get("password") == admin_password:
+                session["admin_authed"] = True
+            else:
+                flash("Incorrect password.", "error")
+                return render_template("admin_login.html")
+        else:
+            return render_template("admin_login.html")
+
+    keys = kv_list_keys("session:")
+    records = []
+    for k in keys:
+        rec = kv_get(k)
+        if rec:
+            records.append(rec)
+    records.sort(key=lambda r: r.get("saved_at", ""), reverse=True)
+
+    return render_template("admin.html", records=records, records_json=json.dumps(records, indent=2, default=str))
+
+
+@app.route("/admin/delete/<session_id>", methods=["POST"])
+def admin_delete(session_id):
+    """
+    Deletes a single record from the database. Requires an authenticated
+    admin session (same protection as the /admin viewer page) — this route
+    cannot be reached without first logging in via /admin.
+    """
+    if not session.get("admin_authed"):
+        return redirect(url_for("admin"))
+
+    kv_delete(f"session:{session_id}")
+    flash("Record deleted.", "success")
+    return redirect(url_for("admin"))
 
 
 if __name__ == "__main__":
