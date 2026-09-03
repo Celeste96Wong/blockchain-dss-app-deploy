@@ -34,7 +34,7 @@ from questions import (
     STAGE_EXPERT_NOTE_ORGANISATION, RESULTS_TO_VALIDATION_NOTE,
     map_to_official_sme_class,
     STAGE1_QUESTIONS, STAGE2_QUESTIONS, VALID_STAGE2_OPTIONS, DIM_ORDER,
-    LIKERT_SCALE, EXPERT_VALIDATION_CLOSED_QUESTIONS,
+    LIKERT_SCALE, EXPERT_VALIDATION_CLOSED_QUESTIONS, NEGATIVE_LIKERT_RESPONSES,
     SAATY_SCALE_EXPLANATION, SAATY_INTENSITY_OPTIONS, EXPERT_AHP_QUESTIONS,
     EXPERT_DIMENSION_STRUCTURE_QUESTION, EXPERT_DIMENSION_STRUCTURE_OPTIONS,
     EXPERT_VALIDATION_OPEN_QUESTIONS,
@@ -229,6 +229,32 @@ def validation_select():
 def validation_expert():
     if request.method == "POST":
         closed = {key: request.form.get(key) for key in EXPERT_VALIDATION_CLOSED_QUESTIONS}
+        reasons = {key: request.form.get(f"{key}_reason", "").strip() for key in EXPERT_VALIDATION_CLOSED_QUESTIONS}
+
+        # Server-side enforcement (mirrors the client-side JS, but cannot be
+        # bypassed by disabling JS): any negative Likert answer must be
+        # accompanied by a non-empty reason.
+        missing_reason_labels = [
+            EXPERT_VALIDATION_CLOSED_QUESTIONS[key]
+            for key in EXPERT_VALIDATION_CLOSED_QUESTIONS
+            if closed[key] in NEGATIVE_LIKERT_RESPONSES and not reasons[key]
+        ]
+        if missing_reason_labels:
+            for label in missing_reason_labels:
+                flash(f"Please explain your answer for: \"{label}\"", "warning")
+            return render_template(
+                "validation_expert.html",
+                likert_questions=EXPERT_VALIDATION_CLOSED_QUESTIONS,
+                likert_scale=LIKERT_SCALE,
+                negative_likert_responses=list(NEGATIVE_LIKERT_RESPONSES),
+                saaty_explanation=SAATY_SCALE_EXPLANATION,
+                ahp_questions=EXPERT_AHP_QUESTIONS,
+                intensity_options=SAATY_INTENSITY_OPTIONS,
+                dimension_structure_question=list(EXPERT_DIMENSION_STRUCTURE_QUESTION.values())[0],
+                dimension_structure_options=EXPERT_DIMENSION_STRUCTURE_OPTIONS,
+                open_questions=EXPERT_VALIDATION_OPEN_QUESTIONS,
+            )
+
         ahp = {}
         for key in EXPERT_AHP_QUESTIONS:
             ahp[key] = {
@@ -242,6 +268,7 @@ def validation_expert():
             "source": "expert_validation",
             "identity": session.get("identity"),
             "closed_answers": closed,
+            "closed_answer_reasons": reasons,
             "ahp_pairwise": ahp,
             "dimension_structure_choice": dim_structure,
             "open_answers": open_answers,
@@ -255,6 +282,7 @@ def validation_expert():
         "validation_expert.html",
         likert_questions=EXPERT_VALIDATION_CLOSED_QUESTIONS,
         likert_scale=LIKERT_SCALE,
+        negative_likert_responses=list(NEGATIVE_LIKERT_RESPONSES),
         saaty_explanation=SAATY_SCALE_EXPLANATION,
         ahp_questions=EXPERT_AHP_QUESTIONS,
         intensity_options=SAATY_INTENSITY_OPTIONS,

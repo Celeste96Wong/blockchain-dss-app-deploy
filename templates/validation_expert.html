@@ -8,8 +8,14 @@
   <div class="question-block">
     <span class="question-text">{{ text }}</span>
     {% for opt in likert_scale %}
-    <label class="option"><input type="radio" name="{{ key }}" value="{{ opt }}" required> {{ opt }}</label>
+    <label class="option"><input type="radio" name="{{ key }}" value="{{ opt }}" required class="likert-radio" data-key="{{ key }}"> {{ opt }}</label>
     {% endfor %}
+    <div id="{{ key }}_followup_wrap" class="question-followup" style="display:none; margin-top:8px;">
+      <label for="{{ key }}_followup" style="font-size:13px; color:var(--text-muted); display:block; margin-bottom:4px;">
+        Since you disagreed, please briefly explain why:
+      </label>
+      <textarea id="{{ key }}_followup" name="{{ key }}_reason"></textarea>
+    </div>
   </div>
   {% endfor %}
 
@@ -53,4 +59,52 @@
     <button type="submit" class="btn btn-primary">Submit Expert Feedback</button>
   </div>
 </form>
+
+<script>
+  var NEGATIVE_LIKERT_RESPONSES = {{ negative_likert_responses | tojson }};
+  var AHP_KEYS = {{ ahp_questions.keys() | list | tojson }};
+
+  function toggleFollowup(key) {
+    var wrap = document.getElementById(key + "_followup_wrap");
+    var textarea = document.getElementById(key + "_followup");
+    var selected = document.querySelector('input[name="' + key + '"]:checked');
+    var isNegative = selected && NEGATIVE_LIKERT_RESPONSES.indexOf(selected.value) !== -1;
+    if (isNegative) {
+      wrap.style.display = "block";
+      textarea.required = true;
+    } else {
+      wrap.style.display = "none";
+      textarea.required = false;
+      textarea.value = "";
+    }
+  }
+
+  document.querySelectorAll(".likert-radio").forEach(function (radio) {
+    radio.addEventListener("change", function () {
+      toggleFollowup(radio.dataset.key);
+    });
+  });
+
+  document.querySelector("form").addEventListener("submit", function (e) {
+    var equalCount = 0;
+    AHP_KEYS.forEach(function (key) {
+      var selected = document.querySelector('input[name="' + key + '_direction"]:checked');
+      if (selected && selected.value === "Equal") {
+        equalCount++;
+      }
+    });
+    if (equalCount >= 4) {
+      var proceed = confirm(
+        "You've marked most factor pairs as Equally Important. \n" +
+        "This is a valid judgement, but if you'd like to express \n" +
+        "any nuanced differences in priority, click Cancel to \n" +
+        "review your answers before submitting.\n\n" +
+        "Click OK to submit as-is."
+      );
+      if (!proceed) {
+        e.preventDefault();
+      }
+    }
+  });
+</script>
 {% endblock %}

@@ -222,6 +222,11 @@ DIM_ORDER = ["Economic", "Organizational", "Technological", "Regulatory"]
 # ============================================================
 LIKERT_SCALE = ["Strongly Disagree", "Disagree", "Neutral", "Agree", "Strongly Agree"]
 
+# Likert responses that require the respondent to give a follow-up reason —
+# used both client-side (to show/require the reason textarea) and
+# server-side (to enforce it even if JS is disabled).
+NEGATIVE_LIKERT_RESPONSES = {"Strongly Disagree", "Disagree"}
+
 EXPERT_VALIDATION_CLOSED_QUESTIONS = {
     "EQ1_accuracy": "The system's readiness assessment results align with real-world blockchain adoption considerations.",
     "EQ2_practicality": "The questions asked in the assessment are practical and relevant to actual SME decision-making.",
