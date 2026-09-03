@@ -26,11 +26,11 @@
   <div class="question-block">
     <span class="question-text">{{ item.context }}</span>
     <p style="font-size:13px; color:var(--text-muted); margin:4px 0;">Which is more important?</p>
-    <label class="option"><input type="radio" name="{{ key }}_direction" value="{{ item.pair[0] }}" required> {{ item.pair[0] }}</label>
-    <label class="option"><input type="radio" name="{{ key }}_direction" value="Equal"> Equally Important</label>
-    <label class="option"><input type="radio" name="{{ key }}_direction" value="{{ item.pair[1] }}"> {{ item.pair[1] }}</label>
+    <label class="option"><input type="radio" name="{{ key }}_direction" value="{{ item.pair[0] }}" required class="ahp-direction" data-key="{{ key }}"> {{ item.pair[0] }}</label>
+    <label class="option"><input type="radio" name="{{ key }}_direction" value="Equal" class="ahp-direction" data-key="{{ key }}"> Equally Important</label>
+    <label class="option"><input type="radio" name="{{ key }}_direction" value="{{ item.pair[1] }}" class="ahp-direction" data-key="{{ key }}"> {{ item.pair[1] }}</label>
     <p style="font-size:13px; color:var(--text-muted); margin:8px 0 4px;">If not equal, by how much more important?</p>
-    <select name="{{ key }}_intensity">
+    <select name="{{ key }}_intensity" id="{{ key }}_intensity">
       <option value="">N/A (equally important)</option>
       {% for opt in intensity_options %}
       <option value="{{ opt }}">{{ opt }}</option>
@@ -43,8 +43,14 @@
   <div class="question-block">
     <span class="question-text">{{ dimension_structure_question }}</span>
     {% for opt in dimension_structure_options %}
-    <label class="option"><input type="radio" name="dim_structure" value="{{ opt }}" required> {{ opt }}</label>
+    <label class="option"><input type="radio" name="dim_structure" value="{{ opt }}" required class="dim-structure-radio"> {{ opt }}</label>
     {% endfor %}
+    <div id="dim_structure_followup_wrap" class="question-followup" style="display:none; margin-top:8px;">
+      <label for="dim_structure_followup" style="font-size:13px; color:var(--text-muted); display:block; margin-bottom:4px;">
+        Please briefly explain why:
+      </label>
+      <textarea id="dim_structure_followup" name="dim_structure_reason"></textarea>
+    </div>
   </div>
 
   <h2>Part D — Open Feedback</h2>
@@ -61,50 +67,114 @@
 </form>
 
 <script>
+(function () {
+  "use strict";
+
   var NEGATIVE_LIKERT_RESPONSES = {{ negative_likert_responses | tojson }};
   var AHP_KEYS = {{ ahp_questions.keys() | list | tojson }};
+  var DIM_STRUCTURE_NEUTRAL_OPTION = {{ dimension_structure_neutral_option | tojson }};
 
-  function toggleFollowup(key) {
-    var wrap = document.getElementById(key + "_followup_wrap");
-    var textarea = document.getElementById(key + "_followup");
-    var selected = document.querySelector('input[name="' + key + '"]:checked');
-    var isNegative = selected && NEGATIVE_LIKERT_RESPONSES.indexOf(selected.value) !== -1;
-    if (isNegative) {
-      wrap.style.display = "block";
-      textarea.required = true;
-    } else {
-      wrap.style.display = "none";
-      textarea.required = false;
-      textarea.value = "";
+  function init() {
+    var form = document.querySelector("form");
+    if (!form) return;
+
+    // ---- Feature 1: negative Likert answers require a follow-up reason ----
+    function toggleLikertFollowup(key) {
+      var wrap = document.getElementById(key + "_followup_wrap");
+      var textarea = document.getElementById(key + "_followup");
+      if (!wrap || !textarea) return;
+      var selected = form.querySelector('input[name="' + key + '"]:checked');
+      var isNegative = !!selected && NEGATIVE_LIKERT_RESPONSES.indexOf(selected.value) !== -1;
+      if (isNegative) {
+        wrap.style.display = "block";
+        textarea.required = true;
+      } else {
+        wrap.style.display = "none";
+        textarea.required = false;
+        textarea.value = "";
+      }
     }
+
+    // ---- Feature: AHP direction and intensity must agree ----
+    function syncAhpIntensity(key) {
+      var select = document.getElementById(key + "_intensity");
+      if (!select) return;
+      var selected = form.querySelector('input[name="' + key + '_direction"]:checked');
+      var isEqual = !!selected && selected.value === "Equal";
+      if (isEqual) {
+        select.value = "";
+        select.disabled = true;
+        select.required = false;
+      } else {
+        select.disabled = false;
+        // A specific factor was chosen — force a real 3-9 intensity;
+        // an "N/A" leftover from a previous "Equal" pick is not valid,
+        // so the empty ("N/A") option is left selected but now required,
+        // which blocks submission until the user picks a real value.
+        select.required = !!selected;
+      }
+    }
+
+    // ---- Feature: taking a position on dimension structure requires a reason ----
+    function toggleDimStructureFollowup() {
+      var wrap = document.getElementById("dim_structure_followup_wrap");
+      var textarea = document.getElementById("dim_structure_followup");
+      if (!wrap || !textarea) return;
+      var selected = form.querySelector('input[name="dim_structure"]:checked');
+      var tookPosition = !!selected && selected.value !== DIM_STRUCTURE_NEUTRAL_OPTION;
+      if (tookPosition) {
+        wrap.style.display = "block";
+        textarea.required = true;
+      } else {
+        wrap.style.display = "none";
+        textarea.required = false;
+        textarea.value = "";
+      }
+    }
+
+    // Event delegation: one listener on the form catches all present
+    // (and any future) radios/selects, and doesn't depend on script
+    // placement relative to the fields.
+    form.addEventListener("change", function (e) {
+      var target = e.target;
+      if (target.classList.contains("likert-radio")) {
+        toggleLikertFollowup(target.dataset.key);
+      } else if (target.classList.contains("ahp-direction")) {
+        syncAhpIntensity(target.dataset.key);
+      } else if (target.classList.contains("dim-structure-radio")) {
+        toggleDimStructureFollowup();
+      }
+    });
+
+    // ---- Feature: gentle confirmation when most AHP pairs are "Equal" ----
+    form.addEventListener("submit", function (e) {
+      var equalCount = 0;
+      AHP_KEYS.forEach(function (key) {
+        var selected = form.querySelector('input[name="' + key + '_direction"]:checked');
+        if (selected && selected.value === "Equal") {
+          equalCount++;
+        }
+      });
+      if (equalCount >= 4) {
+        var proceed = confirm(
+          "You've marked most factor pairs as Equally Important. \n" +
+          "This is a valid judgement, but if you'd like to express \n" +
+          "any nuanced differences in priority, click Cancel to \n" +
+          "review your answers before submitting.\n\n" +
+          "Click OK to submit as-is."
+        );
+        if (!proceed) {
+          e.preventDefault();
+        }
+      }
+    });
   }
 
-  document.querySelectorAll(".likert-radio").forEach(function (radio) {
-    radio.addEventListener("change", function () {
-      toggleFollowup(radio.dataset.key);
-    });
-  });
-
-  document.querySelector("form").addEventListener("submit", function (e) {
-    var equalCount = 0;
-    AHP_KEYS.forEach(function (key) {
-      var selected = document.querySelector('input[name="' + key + '_direction"]:checked');
-      if (selected && selected.value === "Equal") {
-        equalCount++;
-      }
-    });
-    if (equalCount >= 4) {
-      var proceed = confirm(
-        "You've marked most factor pairs as Equally Important. \n" +
-        "This is a valid judgement, but if you'd like to express \n" +
-        "any nuanced differences in priority, click Cancel to \n" +
-        "review your answers before submitting.\n\n" +
-        "Click OK to submit as-is."
-      );
-      if (!proceed) {
-        e.preventDefault();
-      }
-    }
-  });
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
 </script>
 {% endblock %}

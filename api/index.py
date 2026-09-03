@@ -37,6 +37,7 @@ from questions import (
     LIKERT_SCALE, EXPERT_VALIDATION_CLOSED_QUESTIONS, NEGATIVE_LIKERT_RESPONSES,
     SAATY_SCALE_EXPLANATION, SAATY_INTENSITY_OPTIONS, EXPERT_AHP_QUESTIONS,
     EXPERT_DIMENSION_STRUCTURE_QUESTION, EXPERT_DIMENSION_STRUCTURE_OPTIONS,
+    EXPERT_DIMENSION_STRUCTURE_NEUTRAL_OPTION,
     EXPERT_VALIDATION_OPEN_QUESTIONS,
     SME_VALIDATION_CLOSED_QUESTIONS, SME_VALIDATION_OPEN_QUESTIONS,
 )
@@ -225,59 +226,7 @@ def validation_select():
     return render_template("validation_select.html")
 
 
-@app.route("/validation/expert", methods=["GET", "POST"])
-def validation_expert():
-    if request.method == "POST":
-        closed = {key: request.form.get(key) for key in EXPERT_VALIDATION_CLOSED_QUESTIONS}
-        reasons = {key: request.form.get(f"{key}_reason", "").strip() for key in EXPERT_VALIDATION_CLOSED_QUESTIONS}
-
-        # Server-side enforcement (mirrors the client-side JS, but cannot be
-        # bypassed by disabling JS): any negative Likert answer must be
-        # accompanied by a non-empty reason.
-        missing_reason_labels = [
-            EXPERT_VALIDATION_CLOSED_QUESTIONS[key]
-            for key in EXPERT_VALIDATION_CLOSED_QUESTIONS
-            if closed[key] in NEGATIVE_LIKERT_RESPONSES and not reasons[key]
-        ]
-        if missing_reason_labels:
-            for label in missing_reason_labels:
-                flash(f"Please explain your answer for: \"{label}\"", "warning")
-            return render_template(
-                "validation_expert.html",
-                likert_questions=EXPERT_VALIDATION_CLOSED_QUESTIONS,
-                likert_scale=LIKERT_SCALE,
-                negative_likert_responses=list(NEGATIVE_LIKERT_RESPONSES),
-                saaty_explanation=SAATY_SCALE_EXPLANATION,
-                ahp_questions=EXPERT_AHP_QUESTIONS,
-                intensity_options=SAATY_INTENSITY_OPTIONS,
-                dimension_structure_question=list(EXPERT_DIMENSION_STRUCTURE_QUESTION.values())[0],
-                dimension_structure_options=EXPERT_DIMENSION_STRUCTURE_OPTIONS,
-                open_questions=EXPERT_VALIDATION_OPEN_QUESTIONS,
-            )
-
-        ahp = {}
-        for key in EXPERT_AHP_QUESTIONS:
-            ahp[key] = {
-                "direction": request.form.get(f"{key}_direction"),
-                "intensity": request.form.get(f"{key}_intensity"),
-            }
-        dim_structure = request.form.get("dim_structure")
-        open_answers = {key: request.form.get(key) for key in EXPERT_VALIDATION_OPEN_QUESTIONS}
-
-        record = {
-            "source": "expert_validation",
-            "identity": session.get("identity"),
-            "closed_answers": closed,
-            "closed_answer_reasons": reasons,
-            "ahp_pairwise": ahp,
-            "dimension_structure_choice": dim_structure,
-            "open_answers": open_answers,
-            "linked_assessment_record_id": session.get("record_id"),
-        }
-        save_session_record(record)
-        flash("Thank you for your expert feedback!", "success")
-        return redirect(url_for("done"))
-
+def _render_validation_expert():
     return render_template(
         "validation_expert.html",
         likert_questions=EXPERT_VALIDATION_CLOSED_QUESTIONS,
@@ -288,8 +237,78 @@ def validation_expert():
         intensity_options=SAATY_INTENSITY_OPTIONS,
         dimension_structure_question=list(EXPERT_DIMENSION_STRUCTURE_QUESTION.values())[0],
         dimension_structure_options=EXPERT_DIMENSION_STRUCTURE_OPTIONS,
+        dimension_structure_neutral_option=EXPERT_DIMENSION_STRUCTURE_NEUTRAL_OPTION,
         open_questions=EXPERT_VALIDATION_OPEN_QUESTIONS,
     )
+
+
+@app.route("/validation/expert", methods=["GET", "POST"])
+def validation_expert():
+    if request.method == "POST":
+        closed = {key: request.form.get(key) for key in EXPERT_VALIDATION_CLOSED_QUESTIONS}
+        reasons = {key: request.form.get(f"{key}_reason", "").strip() for key in EXPERT_VALIDATION_CLOSED_QUESTIONS}
+        ahp = {
+            key: {
+                "direction": request.form.get(f"{key}_direction"),
+                "intensity": request.form.get(f"{key}_intensity", ""),
+            }
+            for key in EXPERT_AHP_QUESTIONS
+        }
+        dim_structure = request.form.get("dim_structure")
+        dim_structure_reason = request.form.get("dim_structure_reason", "").strip()
+
+        # All server-side validation is collected up front (mirrors the
+        # client-side JS, but cannot be bypassed by disabling JS) so the
+        # user sees every problem at once instead of one at a time.
+        has_errors = False
+
+        # Negative Likert answers must be accompanied by a reason.
+        for key in EXPERT_VALIDATION_CLOSED_QUESTIONS:
+            if closed[key] in NEGATIVE_LIKERT_RESPONSES and not reasons[key]:
+                has_errors = True
+                flash(f"Please explain your answer for: \"{EXPERT_VALIDATION_CLOSED_QUESTIONS[key]}\"", "warning")
+
+        # AHP direction and intensity must agree: "Equal" implies no
+        # intensity; picking a specific factor requires a real 3-9 intensity.
+        for key, item in EXPERT_AHP_QUESTIONS.items():
+            direction = ahp[key]["direction"]
+            intensity = ahp[key]["intensity"]
+            if direction == "Equal":
+                if intensity:
+                    has_errors = True
+                    flash(f"Please recheck your answer for: \"{item['context']}\" — an intensity should not be set when the pair is marked Equal.", "warning")
+            elif direction in item["pair"]:
+                if not intensity:
+                    has_errors = True
+                    flash(f"Please select an intensity (3-9) for: \"{item['context']}\"", "warning")
+
+        # Taking a position on dimension structure (anything other than
+        # "no strong preference") requires a reason.
+        if dim_structure and dim_structure != EXPERT_DIMENSION_STRUCTURE_NEUTRAL_OPTION and not dim_structure_reason:
+            has_errors = True
+            flash("Please explain why you prefer that dimension structure.", "warning")
+
+        if has_errors:
+            return _render_validation_expert()
+
+        open_answers = {key: request.form.get(key) for key in EXPERT_VALIDATION_OPEN_QUESTIONS}
+
+        record = {
+            "source": "expert_validation",
+            "identity": session.get("identity"),
+            "closed_answers": closed,
+            "closed_answer_reasons": reasons,
+            "ahp_pairwise": ahp,
+            "dimension_structure_choice": dim_structure,
+            "dimension_structure_reason": dim_structure_reason,
+            "open_answers": open_answers,
+            "linked_assessment_record_id": session.get("record_id"),
+        }
+        save_session_record(record)
+        flash("Thank you for your expert feedback!", "success")
+        return redirect(url_for("done"))
+
+    return _render_validation_expert()
 
 
 @app.route("/validation/sme", methods=["GET", "POST"])

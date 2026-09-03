@@ -302,6 +302,10 @@ EXPERT_DIMENSION_STRUCTURE_OPTIONS = [
     "No strong preference either way",
 ]
 
+# The one option that does NOT require a follow-up reason — any other
+# option is a "took a position" answer and must be justified.
+EXPERT_DIMENSION_STRUCTURE_NEUTRAL_OPTION = "No strong preference either way"
+
 EXPERT_VALIDATION_OPEN_QUESTIONS = {
     "EQ6_missing_factors": "Are there any important readiness factors that you feel the system did NOT ask about, but should have?",
     "EQ7_improvement": "What would you change or improve about this tool?",
